@@ -11,7 +11,11 @@ import android.os.Handler
 import android.util.Log
 import android.widget.TextView
 import com.github.mikephil.charting.charts.LineChart
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.FileWriter
@@ -20,7 +24,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
-    private val baseUrl : String = "URL_HERE"
+    private val baseUrl : String = "http://192.168.1.2:8000/"               // API address & port
 
     private lateinit var mSensorManager: SensorManager
     private lateinit var mAccelerometer: Sensor
@@ -30,11 +34,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var btnExport : TextView
     private lateinit var lineChart : LineChart
     private lateinit var apiInterface: ApiInterface
+    private lateinit var ax : ArrayList<Double>
+    private lateinit var ay : ArrayList<Double>
+    private lateinit var az : ArrayList<Double>
+
     private var handler: Handler = Handler()
-    private lateinit var retrofit : Retrofit
-    private lateinit var ax : ArrayList<Float>
-    private lateinit var ay : ArrayList<Float>
-    private lateinit var az : ArrayList<Float>
+    private var accData : AccelerometerData = AccelerometerData()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +60,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         btnRecord.setOnClickListener {
 //            Initialize Interface, Enable This When API is ready
-//            apiInterface = getClient().create(apiInterface::class.java)
+            apiInterface = getClient().create(ApiInterface::class.java)
+            Log.d("API", apiInterface.toString())
 
 //            Initialize Sensor
 
@@ -67,13 +73,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             Log.d("Time", time.toString())
 
             sendTask.run()
-
-//            val filename = "Accelerometer_" + time.toString() + ".csv"
-//
-//            val path = getExternalFilesDir(null)
-//            val file = path.toString() + '/' + filename
-//            writer = FileWriter(file, true)
-
+            retrieveTask.run()
         }
 
         btnExport.setOnClickListener {
@@ -93,11 +93,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         if (event != null ) {
             when (event.sensor.type) {
                 Sensor.TYPE_ACCELEROMETER -> {
-                    ax.add(event.values[0])
-                    ay.add(event.values[1])
-                    az.add(event.values[2])
-
-                    Log.d("ACCX", ax.toString())
+                    ax.add(event.values[0].toDouble())
+                    ay.add(event.values[1].toDouble())
+                    az.add(event.values[2].toDouble())
 
 //                    tvAcc = findViewById(R.id.tv_accelerometer)
 //
@@ -111,35 +109,66 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 //                    val y = event.values[1]
 //                    val z = normalZ
 //
-//                    writer.write(event.values[0].toString() + ',' +
-//                            event.values[1].toString() + ',' +
-//                            normalZ.toString() + '\n')
                 }
             }
         }
     }
 
     private fun getActivityData() {
-        val call : Call<AccelerometerData> = this.apiInterface.getActivity()
+        val call : Call<String> = apiInterface.getActivity()
+        Log.d("Get", call.toString())
+        call.enqueue(object  : Callback<String> {
+            override fun onResponse(call: Call<String>, response: Response<String>) {
+                Log.d("Get Success", response.body().toString())
+            }
+
+            override fun onFailure(call: Call<String>, t: Throwable) {
+                Log.d("Get Failed", t.toString())
+            }
+
+        })
     }
 
-    private fun sendData(ax: Double, ay: Double, az: Double, long: Double, lat: Double) {
-        Log.d("Runnable", "Task Running")
-//        var call : Call<AccelerometerData> = apiInterface.sendAccData(ax,ay,az,long,lat)
+    private fun sendData(accelerometerData: AccelerometerData) {
+        Log.d("Data", accelerometerData.ax.toString())
+        val call : Call<AccelerometerData> = apiInterface.sendAccData(accelerometerData)
+        call.enqueue(object  : Callback<AccelerometerData> {
+            override fun onResponse(call: Call<AccelerometerData>, response: Response<AccelerometerData>) {
+                if (response.isSuccessful) {
+                    Log.d("Post Success", "Data Sent")
+                } else {
+                    Log.d("Post Failed", "Failed to Add Data")
+                }
+
+            }
+            override fun onFailure(call: Call<AccelerometerData>, t: Throwable) {
+                Log.d("Post Failed", t.toString())
+            }
+
+        })
     }
 
     private fun getClient (): Retrofit {
-        this.retrofit = Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
 
-        return this.retrofit
+        val gson : Gson = GsonBuilder()
+                .setLenient()
+                .create()
+
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
     }
 
     private val sendTask = object : Runnable {
         override fun run() {
-            sendData(1.0,1.0,1.0,1.0,1.0)
+            accData.ax = ax
+            accData.ay = ay
+            accData.az = az
+            accData.long = 1.1
+            accData.lat = 1.1
+
+            sendData(accData)
             handler.postDelayed(this, 1000)
         }
     }
