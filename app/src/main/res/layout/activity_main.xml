@@ -24,7 +24,7 @@
         app:layout_constraintTop_toBottomOf="@id/tv_accelerometer"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/line_chart">
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <Button
             android:id="@+id/record_btn"
@@ -38,16 +38,6 @@
             />
 
     </LinearLayout>
-
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/line_chart"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/linear_layout"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
