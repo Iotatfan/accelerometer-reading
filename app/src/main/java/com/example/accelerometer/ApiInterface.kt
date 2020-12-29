@@ -7,7 +7,7 @@ interface ApiInterface {
     @POST("data")
     fun sendAccData(
             @Body accelerometerData: AccelerometerData
-    ) : Call<AccelerometerData>
+    ) : Call<String>
     @GET("activity")
     fun getActivity() : Call<String>
 }
