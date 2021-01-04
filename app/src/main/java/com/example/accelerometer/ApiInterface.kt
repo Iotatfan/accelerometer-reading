@@ -4,10 +4,12 @@ import retrofit2.Call
 import retrofit2.http.*
 
 interface ApiInterface {
-    @POST("data")
+    @POST("getactivity")
     fun sendAccData(
             @Body accelerometerData: AccelerometerData
     ) : Call<String>
-    @GET("activity")
-    fun getActivity() : Call<String>
+    @POST("data")
+    fun sendLocActivity(
+            @Body activityLocation: ActivityLocation
+    ) : Call<String>
 }

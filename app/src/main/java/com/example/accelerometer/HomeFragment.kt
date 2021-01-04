@@ -55,6 +55,7 @@ class HomeFragment : Fragment(), SensorEventListener {
     private var myLong : Double? = null
     private var handler: Handler = Handler()
     private var accData : AccelerometerData = AccelerometerData()
+    private var accLoc : ActivityLocation = ActivityLocation()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -83,14 +84,6 @@ class HomeFragment : Fragment(), SensorEventListener {
 //            Initialize Sensor
                 mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME)
                 sendTask.run()
-                retrieveTask.run()
-//                val timestamp = Calendar.getInstance().timeInMillis
-//                val formatter = SimpleDateFormat("dd_MM_yyyy-hh:mm:ss")
-//                val time = formatter.format(timestamp)
-
-//                Log.d("Time", time.toString())
-
-
             } else {
                 Toast.makeText(this.context,"Please Enter Valid IP Address",Toast.LENGTH_SHORT).show()
                 Log.d("Address", "Failed to Connect to Server")
@@ -101,7 +94,6 @@ class HomeFragment : Fragment(), SensorEventListener {
         btnExport.setOnClickListener {
             mSensorManager.unregisterListener(this)
             handler.removeCallbacks(sendTask)
-            handler.removeCallbacks(retrieveTask)
         }
     }
 
@@ -161,16 +153,15 @@ class HomeFragment : Fragment(), SensorEventListener {
 
     }
 
-    private fun getActivityData() {
-        val call : Call<String> = apiInterface.getActivity()
-        Log.d("Get", call.toString())
-        call.enqueue(object  : Callback<String> {
+    private  fun sendLoc(activityLocation: ActivityLocation) {
+        val call : Call<String> = apiInterface.sendLocActivity(activityLocation)
+        call.enqueue(object : Callback<String> {
             override fun onResponse(call: Call<String>, response: Response<String>) {
-                Log.d("Get Success", response.body().toString())
+
             }
 
             override fun onFailure(call: Call<String>, t: Throwable) {
-                Log.d("Get Failed", t.toString())
+
             }
 
         })
@@ -182,8 +173,15 @@ class HomeFragment : Fragment(), SensorEventListener {
             override fun onResponse(call: Call<String>, response: Response<String>) {
                 if (response.isSuccessful) {
                     // Server Response, Activity goes here
-                        val activity = response.body().toString()
+                    getLocation()
+                    val activity = response.body().toString()
 
+                    accLoc.activity = activity
+                    accLoc.lat = myLat
+                    accLoc.long = myLong
+
+                    Log.d("Send ActLoc", accLoc.activity.toString())
+                    sendLoc(accLoc)
 
                     if (tvAcc.text != activity ) {
                         tvAcc.text = activity
@@ -247,13 +245,6 @@ class HomeFragment : Fragment(), SensorEventListener {
             }
             Log.d("Data", ax.size.toString())
             handler.postDelayed(this, 1000)
-        }
-    }
-
-    private val retrieveTask = object : Runnable {
-        override fun run() {
-            handler.postDelayed(this, 1000)
-            getActivityData()
         }
     }
 
