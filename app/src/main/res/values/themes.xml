@@ -11,13 +11,13 @@
         <item name="colorOnSecondary">@color/black</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
-        <item name="android:fontFamily">@font/artopyl</item>
+<!--        <item name="android:fontFamily">@font/artopyl</item>-->
         <!-- Customize your theme here. -->
     </style>
     <style name="Base.Widget.Design.TabLayout" parent="android:Widget" tools:ignore="PrivateResource">
         <item name="tabBackground">@drawable/tab_background</item>
         <item name="tabIndicatorColor">@color/colorAccent</item>
         <item name="tabIndicatorHeight">2dp</item>
-        <item name="android:textSize">40sp</item>
+        <item name="android:textSize">20sp</item>
     </style>
 </resources>

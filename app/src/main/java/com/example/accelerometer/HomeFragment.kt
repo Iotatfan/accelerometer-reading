@@ -11,15 +11,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Patterns
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.TextView
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.content.res.AppCompatResources
+import android.widget.*
 import androidx.core.app.ActivityCompat
 import com.bumptech.glide.Glide
 import com.google.android.gms.location.*
@@ -30,17 +27,19 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class HomeFragment : Fragment(), SensorEventListener {
-    private val baseUrl : String = "http://192.168.1.2:8000/"               // API address & port
+    private val baseUrl : String = "http://192.168.1.2:8000/"   // API address & port
+    private val N_SAMPLES : Int = 100
 
     private lateinit var mSensorManager: SensorManager
     private lateinit var mAccelerometer: Sensor
-    private lateinit var writer: FileWriter
+    private lateinit var ipAddress : EditText
     private lateinit var tvAcc : TextView
     private lateinit var btnRecord : TextView
     private lateinit var btnExport : TextView
@@ -48,6 +47,7 @@ class HomeFragment : Fragment(), SensorEventListener {
     private lateinit var ax : ArrayList<Double>
     private lateinit var ay : ArrayList<Double>
     private lateinit var az : ArrayList<Double>
+    private lateinit var ma : ArrayList<Double>
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var gif : ImageView
 
@@ -60,9 +60,11 @@ class HomeFragment : Fragment(), SensorEventListener {
         super.onViewCreated(view, savedInstanceState)
         btnRecord = view.findViewById(R.id.record_btn) as Button
         btnExport = view.findViewById(R.id.export_btn) as Button
+        tvAcc = view.findViewById(R.id.tv_accelerometer)
+        ipAddress = view.findViewById(R.id.server_ip)
         gif = view.findViewById(R.id.gif)
 
-        ax = ArrayList();  ay = ArrayList(); az = ArrayList()
+        ax = ArrayList();  ay = ArrayList(); az = ArrayList(); ma = ArrayList()
 
         btnRecord.text = "Start"
         btnExport.text = "Stop"
@@ -73,24 +75,30 @@ class HomeFragment : Fragment(), SensorEventListener {
 
 
         btnRecord.setOnClickListener {
-//            Initialize Interface, Enable This When API is ready
+//            Initialize Interface
             apiInterface = getClient().create(ApiInterface::class.java)
-            Log.d("API", apiInterface.toString())
+            Log.d("Address", apiInterface.toString())
 
+            if (apiInterface != null) {
 //            Initialize Sensor
-            mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL)
-            val timestamp = Calendar.getInstance().timeInMillis
-            val formatter = SimpleDateFormat("dd_MM_yyyy-hh:mm:ss")
-            val time = formatter.format(timestamp)
+                mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME)
+                sendTask.run()
+                retrieveTask.run()
+//                val timestamp = Calendar.getInstance().timeInMillis
+//                val formatter = SimpleDateFormat("dd_MM_yyyy-hh:mm:ss")
+//                val time = formatter.format(timestamp)
 
-            Log.d("Time", time.toString())
+//                Log.d("Time", time.toString())
 
-            sendTask.run()
-            retrieveTask.run()
+
+            } else {
+                Toast.makeText(this.context,"Please Enter Valid IP Address",Toast.LENGTH_SHORT).show()
+                Log.d("Address", "Failed to Connect to Server")
+            }
+
         }
 
         btnExport.setOnClickListener {
-//            writer.close()
             mSensorManager.unregisterListener(this)
             handler.removeCallbacks(sendTask)
             handler.removeCallbacks(retrieveTask)
@@ -153,7 +161,6 @@ class HomeFragment : Fragment(), SensorEventListener {
 
     }
 
-
     private fun getActivityData() {
         val call : Call<String> = apiInterface.getActivity()
         Log.d("Get", call.toString())
@@ -170,17 +177,30 @@ class HomeFragment : Fragment(), SensorEventListener {
     }
 
     private fun sendData(accelerometerData: AccelerometerData) {
-        Log.d("Data", accelerometerData.ax?.size.toString())
-        val call : Call<AccelerometerData> = apiInterface.sendAccData(accelerometerData)
-        call.enqueue(object  : Callback<AccelerometerData> {
-            override fun onResponse(call: Call<AccelerometerData>, response: Response<AccelerometerData>) {
+        val call : Call<String> = apiInterface.sendAccData(accelerometerData)
+        call.enqueue(object  : Callback<String> {
+            override fun onResponse(call: Call<String>, response: Response<String>) {
                 if (response.isSuccessful) {
-                    Log.d("Post Success", "Data Sent")
+                    // Server Response, Activity goes here
+                        val activity = response.body().toString()
+
+
+                    if (tvAcc.text != activity ) {
+                        tvAcc.text = activity
+                        Log.d("Post Success", activity)
+
+                        when (activity) {
+                            "Walking" -> Glide.with(this@HomeFragment).load(R.drawable.walking_klee).into(gif)
+                            "Running" -> Glide.with(this@HomeFragment).load(R.drawable.running_klee).into(gif)
+                            else -> Glide.with(this@HomeFragment).load(R.drawable.nothing).into(gif)
+                        }
+                    }
+
                 } else {
                     Log.d("Post Failed", "Failed to Send Data")
                 }
             }
-            override fun onFailure(call: Call<AccelerometerData>, t: Throwable) {
+            override fun onFailure(call: Call<String>, t: Throwable) {
                 Log.d("Post Failed", t.toString())
             }
 
@@ -188,13 +208,15 @@ class HomeFragment : Fragment(), SensorEventListener {
     }
 
     private fun getClient (): Retrofit {
-
         val gson : Gson = GsonBuilder()
-            .setLenient()
-            .create()
+                .setLenient()
+                .create()
+
+        val finalUrl = "http://${ipAddress.text}:8000"
+        Log.d("Address", finalUrl)
 
         return Retrofit.Builder()
-            .baseUrl(baseUrl)
+            .baseUrl(finalUrl)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
@@ -203,19 +225,27 @@ class HomeFragment : Fragment(), SensorEventListener {
         ay.clear()
         ax.clear()
         az.clear()
+        ma.clear()
     }
 
     private val sendTask = object : Runnable {
         override fun run() {
-            accData.ax = ax
-            accData.ay = ay
-            accData.az = az
-            accData.long = myLong
-            accData.lat = myLat
+            if (ax.size >= N_SAMPLES && ay.size >= N_SAMPLES && az.size >= N_SAMPLES) {
+                var i : Int = 0
+                while (i < ax.size) {
+                    ma.add(sqrt(ax[i].pow(2) + ay[i].pow(2) + az[i].pow(2)))
+                    i++
+                }
 
-            getLocation()
-            sendData(accData)
-            clearArray()
+                accData.ax = ArrayList(ax.subList(0, N_SAMPLES))
+                accData.ay = ArrayList(ay.subList(0, N_SAMPLES))
+                accData.az = ArrayList(az.subList(0, N_SAMPLES))
+                accData.ma = ArrayList(ma.subList(0, N_SAMPLES))
+
+                sendData(accData)
+                clearArray()
+            }
+            Log.d("Data", ax.size.toString())
             handler.postDelayed(this, 1000)
         }
     }
