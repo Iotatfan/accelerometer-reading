@@ -80,6 +80,8 @@ class HomeFragment : Fragment(), SensorEventListener {
             apiInterface = getClient().create(ApiInterface::class.java)
             Log.d("Address", apiInterface.toString())
 
+            getLocation()
+
             if (apiInterface != null) {
 //            Initialize Sensor
                 mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME)
@@ -88,6 +90,7 @@ class HomeFragment : Fragment(), SensorEventListener {
                 Toast.makeText(this.context,"Please Enter Valid IP Address",Toast.LENGTH_SHORT).show()
                 Log.d("Address", "Failed to Connect to Server")
             }
+
 
         }
 
@@ -115,7 +118,7 @@ class HomeFragment : Fragment(), SensorEventListener {
 
     private fun getLocation() {
         val locationRequest = LocationRequest.create()?.apply {
-            interval = 10000
+            interval = 1000
             fastestInterval = 500
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }
@@ -124,6 +127,7 @@ class HomeFragment : Fragment(), SensorEventListener {
             override fun onLocationResult(locationResult: LocationResult?) {
                 locationResult ?: return
                 for (location in locationResult.locations){
+                    Log.d("Location", location.latitude.toString())
                     myLong = location.longitude
                     myLat = location.latitude
                 }
@@ -133,9 +137,9 @@ class HomeFragment : Fragment(), SensorEventListener {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this.requireActivity())
 
         if (ActivityCompat.checkSelfPermission(this.requireActivity(),
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-            && ActivityCompat.checkSelfPermission(this.requireActivity(),
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this.requireActivity(),
+                        Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
             // here to request the missing permissions, and then overriding
@@ -146,9 +150,9 @@ class HomeFragment : Fragment(), SensorEventListener {
             return
         } else {
             fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper())
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper())
         }
 
     }
@@ -173,14 +177,13 @@ class HomeFragment : Fragment(), SensorEventListener {
             override fun onResponse(call: Call<String>, response: Response<String>) {
                 if (response.isSuccessful) {
                     // Server Response, Activity goes here
-                    getLocation()
                     val activity = response.body().toString()
 
                     accLoc.activity = activity
                     accLoc.lat = myLat
                     accLoc.long = myLong
 
-                    Log.d("Send ActLoc", accLoc.activity.toString())
+                    Log.d("Send ActLoc", accLoc.activity.toString() + accLoc.lat + accLoc.long)
                     sendLoc(accLoc)
 
                     if (tvAcc.text != activity ) {
@@ -189,7 +192,7 @@ class HomeFragment : Fragment(), SensorEventListener {
 
                         when (activity) {
                             "Walking" -> Glide.with(this@HomeFragment).load(R.drawable.walking_klee).into(gif)
-                            "Running" -> Glide.with(this@HomeFragment).load(R.drawable.running_klee).into(gif)
+                            "Jogging" -> Glide.with(this@HomeFragment).load(R.drawable.running_klee).into(gif)
                             else -> Glide.with(this@HomeFragment).load(R.drawable.nothing).into(gif)
                         }
                     }
@@ -214,9 +217,9 @@ class HomeFragment : Fragment(), SensorEventListener {
         Log.d("Address", finalUrl)
 
         return Retrofit.Builder()
-            .baseUrl(finalUrl)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
+                .baseUrl(finalUrl)
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build()
     }
 
     private fun clearArray () {
@@ -244,13 +247,13 @@ class HomeFragment : Fragment(), SensorEventListener {
                 clearArray()
             }
             Log.d("Data", ax.size.toString())
-            handler.postDelayed(this, 1000)
+            handler.postDelayed(this, 6000)
         }
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+            inflater: LayoutInflater, container: ViewGroup?,
+            savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_home, container, false)
